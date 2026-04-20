@@ -29,7 +29,6 @@ RUN apt-get update \
 
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public 2>/dev/null || true
 
 EXPOSE 3000
 ENV PORT=3000

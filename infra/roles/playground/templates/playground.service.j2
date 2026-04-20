@@ -9,7 +9,8 @@ Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory={{ app_dir }}
 EnvironmentFile={{ app_dir }}/.env
-ExecStartPre=/usr/bin/docker compose pull --quiet
+# Don't `docker compose pull` — the `app` service is built locally and has no
+# registry image. `up --build` handles both building `app` and pulling `caddy`.
 ExecStart=/usr/bin/docker compose up -d --build --remove-orphans
 ExecStop=/usr/bin/docker compose down
 TimeoutStartSec=600

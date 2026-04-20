@@ -9,7 +9,7 @@ app_dir: /opt/playground
 app_runtime_dir: /var/tmp/playground
 
 # App source of truth. Pull on every `--tags=playground` run.
-app_repo: https://github.com/you/log-collector-playground.git
+app_repo: https://github.com/povilasv2/log-collector-playground.git
 app_ref: main
 
 # Authorised SSH keys for the app user (paste your pubkey(s)).
