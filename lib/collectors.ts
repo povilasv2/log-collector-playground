@@ -13,8 +13,11 @@ export interface CollectorSpec {
   // "stdin" → the input bytes are piped to the container via stdin and the
   // collector uses a stdin-style source. The process exits on EOF.
   // "file"  → input is bind-mounted at /run-input/input.log. The collector tails
-  // the file and has to be killed at the wall-clock timeout.
+  // the file and has to be killed.
   inputMode: InputMode;
+  // Idle-kill: if no stdout/stderr activity for this many ms, gracefully stop
+  // the container. Used for collectors with no exit-on-EOF (fluentd tail).
+  idleKillMs?: number;
 }
 
 export const COLLECTORS: Record<CollectorId, CollectorSpec> = {
@@ -47,6 +50,7 @@ export const COLLECTORS: Record<CollectorId, CollectorSpec> = {
     monacoLanguage: "xml",
     docsUrl: "https://docs.fluentd.org/",
     inputMode: "file",
+    idleKillMs: 2000,
   },
 };
 

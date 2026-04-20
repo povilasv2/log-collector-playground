@@ -72,13 +72,23 @@ export async function runCollector(
       ...spec.command,
     ];
 
-    return await spawnDocker(containerName, dockerArgs, spec.inputMode === "stdin" ? input : null);
+    return await spawnDocker(
+      containerName,
+      dockerArgs,
+      spec.inputMode === "stdin" ? input : null,
+      spec.idleKillMs,
+    );
   } finally {
     rm(hostDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
-function spawnDocker(containerName: string, args: string[], stdinData: string | null): Promise<RunResult> {
+function spawnDocker(
+  containerName: string,
+  args: string[],
+  stdinData: string | null,
+  idleKillMs: number | undefined,
+): Promise<RunResult> {
   return new Promise((resolve) => {
     const started = Date.now();
     const child = spawn("docker", args, {
@@ -89,18 +99,32 @@ function spawnDocker(containerName: string, args: string[], stdinData: string | 
       child.stdin.end(stdinData);
     }
 
+    let idleTimer: NodeJS.Timeout | null = null;
+    let idleStopped = false;
+    const armIdleKill = () => {
+      if (!idleKillMs) return;
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        idleStopped = true;
+        spawn("docker", ["stop", "--time=1", containerName], { stdio: "ignore" });
+      }, idleKillMs);
+    };
+    armIdleKill();
+
     let stdout = "";
     let stderr = "";
     let stdoutTrunc = false;
     let stderrTrunc = false;
 
     child.stdout!.on("data", (chunk: Buffer) => {
+      armIdleKill();
       if (stdout.length >= LIMITS.stdoutBytes) { stdoutTrunc = true; return; }
       const remaining = LIMITS.stdoutBytes - stdout.length;
       stdout += chunk.length > remaining ? chunk.slice(0, remaining).toString() : chunk.toString();
       if (chunk.length > remaining) stdoutTrunc = true;
     });
     child.stderr!.on("data", (chunk: Buffer) => {
+      armIdleKill();
       if (stderr.length >= LIMITS.stderrBytes) { stderrTrunc = true; return; }
       const remaining = LIMITS.stderrBytes - stderr.length;
       stderr += chunk.length > remaining ? chunk.slice(0, remaining).toString() : chunk.toString();
@@ -116,18 +140,20 @@ function spawnDocker(containerName: string, args: string[], stdinData: string | 
 
     child.on("close", (code) => {
       clearTimeout(timer);
+      if (idleTimer) clearTimeout(idleTimer);
       resolve({
         stdout,
         stderr,
         exitCode: code,
         durationMs: Date.now() - started,
-        timedOut,
+        timedOut: timedOut && !idleStopped,
         truncated: stdoutTrunc || stderrTrunc,
       });
     });
 
     child.on("error", (err) => {
       clearTimeout(timer);
+      if (idleTimer) clearTimeout(idleTimer);
       resolve({
         stdout,
         stderr: stderr + `\n[runner] failed to spawn docker: ${err.message}`,
