@@ -1,4 +1,4 @@
-export type CollectorId = "vector" | "fluent-bit" | "fluentd";
+export type CollectorId = "vector" | "fluent-bit" | "fluentd" | "otel";
 
 export type InputMode = "stdin" | "file";
 
@@ -49,6 +49,17 @@ export const COLLECTORS: Record<CollectorId, CollectorSpec> = {
     command: ["fluentd", "-c", "/run-input/config.conf"],
     monacoLanguage: "xml",
     docsUrl: "https://docs.fluentd.org/",
+    inputMode: "file",
+    idleKillMs: 2000,
+  },
+  otel: {
+    id: "otel",
+    displayName: "OpenTelemetry Collector",
+    image: "otel/opentelemetry-collector-contrib:0.150.1",
+    configFilename: "config.yaml",
+    command: ["--config", "/run-input/config.yaml"],
+    monacoLanguage: "yaml",
+    docsUrl: "https://opentelemetry.io/docs/collector/",
     inputMode: "file",
     idleKillMs: 2000,
   },

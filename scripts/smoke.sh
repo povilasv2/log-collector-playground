@@ -23,16 +23,16 @@ run_case() {
     -H 'content-type: application/json' \
     --data "$payload")
 
-  local exit_code stdout timed_out duration
+  local exit_code stdout stderr timed_out duration
   exit_code=$(jq -r '.exitCode' <<<"$resp")
   stdout=$(jq -r '.stdout'      <<<"$resp")
+  stderr=$(jq -r '.stderr'      <<<"$resp")
   timed_out=$(jq -r '.timedOut' <<<"$resp")
   duration=$(jq -r '.durationMs' <<<"$resp")
 
-  # Fluentd has no stdin input; it tails a file and is killed at the timeout.
-  # For every collector we just assert the expected substring is on stdout.
-  if ! grep -qF "$expected" <<<"$stdout"; then
-    echo "FAIL: $collector stdout missing '$expected' (exit=$exit_code timedOut=$timed_out)" >&2
+  # Otel's debug exporter writes to stderr (internal logger). Check both streams.
+  if ! grep -qF "$expected" <<<"$stdout$stderr"; then
+    echo "FAIL: $collector missing '$expected' (exit=$exit_code timedOut=$timed_out)" >&2
     jq . <<<"$resp" >&2
     fail=1
     return
@@ -43,5 +43,6 @@ run_case() {
 run_case vector      '"user signed in"'
 run_case fluent-bit  '"user signed in"'
 run_case fluentd     '"user signed in"'
+run_case otel        'user signed in'
 
 exit "$fail"

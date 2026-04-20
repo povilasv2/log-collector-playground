@@ -7,6 +7,7 @@ images=(
   "timberio/vector:0.54.0-alpine"
   "fluent/fluent-bit:3.1.7"
   "fluent/fluentd:v1.17-debian-1"
+  "otel/opentelemetry-collector-contrib:0.150.1"
 )
 
 for img in "${images[@]}"; do
