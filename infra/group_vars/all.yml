@@ -1,0 +1,22 @@
+---
+# Domain the public playground will be served on. Caddy obtains a cert via ACME.
+domain: loglab.cloud
+acme_email: povilas.vaitkus@hostinger.com
+
+# Non-root user that owns /opt/playground and is in the docker group.
+app_user: playground
+app_dir: /opt/playground
+app_runtime_dir: /var/tmp/playground
+
+# App source of truth. Pull on every `--tags=playground` run.
+app_repo: https://github.com/you/log-collector-playground.git
+app_ref: main
+
+# Authorised SSH keys for the app user (paste your pubkey(s)).
+ssh_authorized_keys: []
+
+# Pinned collector images — match lib/collectors.ts.
+collector_images:
+  - timberio/vector:0.54.0-alpine
+  - fluent/fluent-bit:3.1.7
+  - fluent/fluentd:v1.17-debian-1

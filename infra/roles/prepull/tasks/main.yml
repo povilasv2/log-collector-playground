@@ -1,0 +1,42 @@
+---
+- name: Install prepull script
+  template:
+    src: prepull-collectors.sh.j2
+    dest: /usr/local/bin/prepull-collectors.sh
+    mode: "0755"
+
+- name: Install prepull service unit
+  copy:
+    dest: /etc/systemd/system/prepull-collectors.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Pre-pull log collector images
+      After=docker.service
+      Requires=docker.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/prepull-collectors.sh
+
+- name: Install prepull timer unit
+  copy:
+    dest: /etc/systemd/system/prepull-collectors.timer
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Weekly pre-pull of log collector images
+
+      [Timer]
+      OnCalendar=Sun 03:00
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
+
+- name: Enable and start prepull timer
+  systemd:
+    name: prepull-collectors.timer
+    enabled: true
+    state: started
+    daemon_reload: true

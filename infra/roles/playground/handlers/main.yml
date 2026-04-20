@@ -1,0 +1,14 @@
+---
+- name: reload systemd
+  systemd:
+    daemon_reload: true
+
+- name: restart playground
+  systemd:
+    name: playground.service
+    state: restarted
+
+- name: recreate compose stack
+  systemd:
+    name: playground.service
+    state: restarted

@@ -1,0 +1,7 @@
+---
+- name: Install Docker Engine from upstream repo
+  hosts: all
+  become: true
+  tags: [docker]
+  roles:
+    - docker

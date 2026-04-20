@@ -1,0 +1,113 @@
+---
+- name: Assert Debian 13 (Trixie)
+  assert:
+    that:
+      - ansible_facts.distribution == "Debian"
+      - ansible_facts.distribution_major_version | int >= 13
+    fail_msg: "This role targets Debian 13 (Trixie) or newer."
+
+- name: Install base packages
+  apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+      - git
+      - ufw
+      - fail2ban
+      - unattended-upgrades
+      - apt-listchanges
+      - python3-debian
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Enable unattended-upgrades
+  copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    mode: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+
+- name: Create app user
+  user:
+    name: "{{ app_user }}"
+    shell: /bin/bash
+    create_home: true
+    state: present
+
+- name: Install authorised SSH keys for app user
+  authorized_key:
+    user: "{{ app_user }}"
+    key: "{{ item }}"
+    state: present
+  loop: "{{ ssh_authorized_keys }}"
+  when: ssh_authorized_keys | length > 0
+
+- name: Harden SSH (disable root + password auth)
+  copy:
+    dest: /etc/ssh/sshd_config.d/90-hardening.conf
+    mode: "0644"
+    content: |
+      PermitRootLogin no
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+  notify: restart sshd
+  when: ssh_authorized_keys | length > 0
+
+- name: Configure ufw defaults
+  ufw:
+    direction: "{{ item.direction }}"
+    policy: "{{ item.policy }}"
+  loop:
+    - { direction: incoming, policy: deny }
+    - { direction: outgoing, policy: allow }
+
+- name: Open required ports in ufw
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: [22, 80, 443]
+
+- name: Enable ufw
+  ufw:
+    state: enabled
+    logging: low
+
+- name: Ensure 1 GB swapfile exists
+  block:
+    - name: Check for swapfile
+      stat:
+        path: /swapfile
+      register: swap_stat
+
+    - name: Create swapfile
+      command: fallocate -l 1G /swapfile
+      when: not swap_stat.stat.exists
+      changed_when: true
+
+    - name: Set swapfile perms
+      file:
+        path: /swapfile
+        mode: "0600"
+      when: not swap_stat.stat.exists
+
+    - name: Format swapfile
+      command: mkswap /swapfile
+      when: not swap_stat.stat.exists
+      changed_when: true
+
+    - name: Register swapfile in fstab
+      mount:
+        src: /swapfile
+        path: none
+        fstype: swap
+        opts: sw
+        state: present
+
+    - name: Enable swap
+      command: swapon /swapfile
+      when: not swap_stat.stat.exists
+      changed_when: true

@@ -1,0 +1,5 @@
+---
+- import_playbook: 10-bootstrap.yml
+- import_playbook: 20-docker.yml
+- import_playbook: 30-playground.yml
+- import_playbook: 40-prepull.yml

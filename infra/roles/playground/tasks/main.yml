@@ -1,0 +1,45 @@
+---
+- name: Ensure app and runtime directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: "0755"
+  loop:
+    - "{{ app_dir }}"
+    - "{{ app_runtime_dir }}"
+
+- name: Clone / update app repo
+  become_user: "{{ app_user }}"
+  git:
+    repo: "{{ app_repo }}"
+    dest: "{{ app_dir }}"
+    version: "{{ app_ref }}"
+    force: true
+  notify: recreate compose stack
+
+- name: Render .env
+  template:
+    src: env.j2
+    dest: "{{ app_dir }}/.env"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: "0640"
+  notify: recreate compose stack
+
+- name: Install playground systemd unit
+  template:
+    src: playground.service.j2
+    dest: /etc/systemd/system/playground.service
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart playground
+
+- name: Enable and start playground service
+  systemd:
+    name: playground.service
+    enabled: true
+    state: started
+    daemon_reload: true

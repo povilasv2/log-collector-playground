@@ -1,0 +1,68 @@
+---
+- name: Ensure keyring directory exists
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Download Docker apt signing key
+  get_url:
+    url: https://download.docker.com/linux/debian/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: "0644"
+    force: false
+
+- name: Add Docker apt repository (Trixie)
+  apt_repository:
+    repo: >-
+      deb [arch={{ ansible_facts.architecture | replace('x86_64','amd64') | replace('aarch64','arm64') }}
+      signed-by=/etc/apt/keyrings/docker.asc]
+      https://download.docker.com/linux/debian trixie stable
+    filename: docker
+    state: present
+    update_cache: true
+
+- name: Install Docker Engine + Compose plugin
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+
+- name: Deploy /etc/docker/daemon.json
+  copy:
+    dest: /etc/docker/daemon.json
+    mode: "0644"
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": { "max-size": "10m", "max-file": "3" },
+        "live-restore": true
+      }
+  notify: restart docker
+
+- name: Ensure docker service is running and enabled
+  service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Add app user to docker group
+  user:
+    name: "{{ app_user }}"
+    groups: docker
+    append: true
+
+- name: Pre-pull collector images
+  community.docker.docker_image:
+    name: "{{ item }}"
+    source: pull
+  loop: "{{ collector_images }}"
+  register: image_pull
+  retries: 3
+  delay: 5
+  until: image_pull is succeeded
+  ignore_errors: "{{ ansible_check_mode }}"

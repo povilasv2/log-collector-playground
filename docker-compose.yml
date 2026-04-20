@@ -1,0 +1,33 @@
+services:
+  app:
+    build: .
+    image: log-collector-playground:latest
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PLAYGROUND_WORK_DIR=/var/tmp/playground
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/tmp/playground:/var/tmp/playground
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN}
+      - ACME_EMAIL=${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  caddy_data:
+  caddy_config:

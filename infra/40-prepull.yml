@@ -1,0 +1,7 @@
+---
+- name: Install collector image pre-pull timer
+  hosts: all
+  become: true
+  tags: [prepull]
+  roles:
+    - prepull

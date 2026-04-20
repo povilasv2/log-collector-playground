@@ -1,0 +1,7 @@
+---
+- name: Deploy the playground app
+  hosts: all
+  become: true
+  tags: [playground]
+  roles:
+    - playground
